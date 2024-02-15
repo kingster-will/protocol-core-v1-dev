@@ -7,14 +7,13 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { ERC165Checker } from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import { ShortStrings } from "@openzeppelin/contracts/utils/ShortStrings.sol";
 
 import { IIPAccount } from "../../interfaces/IIPAccount.sol";
-import { IPAccountStorageOps } from "../../lib/IPAccountStorageOps.sol";
 import { IPolicyFrameworkManager } from "../../interfaces/modules/licensing/IPolicyFrameworkManager.sol";
 import { ILicenseRegistry } from "../../interfaces/registries/ILicenseRegistry.sol";
 import { ILicensingModule } from "../../interfaces/modules/licensing/ILicensingModule.sol";
 import { IIPAccountRegistry } from "../../interfaces/registries/IIPAccountRegistry.sol";
+import { IDisputeModule } from "../../interfaces/modules/dispute/IDisputeModule.sol";
 import { Errors } from "../../lib/Errors.sol";
 import { DataUniqueness } from "../../lib/DataUniqueness.sol";
 import { Licensing } from "../../lib/Licensing.sol";
@@ -23,19 +22,15 @@ import { RoyaltyModule } from "../../modules/royalty-module/RoyaltyModule.sol";
 import { AccessControlled } from "../../access/AccessControlled.sol";
 import { LICENSING_MODULE_KEY } from "../../lib/modules/Module.sol";
 import { BaseModule } from "../BaseModule.sol";
-import { ShortStringOps } from "../../utils/ShortStringOps.sol";
 
 // TODO: consider disabling operators/approvals on creation
 contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, ReentrancyGuard {
     using ERC165Checker for address;
-    using IPAccountStorageOps for IIPAccount;
     using IPAccountChecker for IIPAccountRegistry;
     using EnumerableSet for EnumerableSet.UintSet;
     using EnumerableSet for EnumerableSet.AddressSet;
     using Licensing for *;
     using Strings for *;
-    using ShortStrings for *;
-    using ShortStringOps for uint256;
 
     struct PolicySetup {
         uint256 index;
@@ -46,11 +41,9 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
 
     RoyaltyModule public immutable ROYALTY_MODULE;
     ILicenseRegistry public immutable LICENSE_REGISTRY;
+    IDisputeModule public immutable DISPUTE_MODULE;
 
     string public constant override name = LICENSING_MODULE_KEY;
-    string public constant IP_STORAGE_POLICY_SETUPS = "policySetups";
-    string public constant IP_STORAGE_PARENTS = "ipIdParents";
-
     mapping(address framework => bool registered) private _registeredFrameworkManagers;
     mapping(bytes32 policyHash => uint256 policyId) private _hashedPolicies;
     mapping(uint256 policyId => Licensing.Policy policyData) private _policies;
@@ -58,7 +51,9 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
     /// @notice internal mapping to track if a policy was set by linking or minting, and the
     /// index of the policy in the ipId policy set
     /// Policies can't be removed, but they can be deactivated by setting active to false
+    mapping(address ipId => mapping(uint256 policyId => PolicySetup setup)) private _policySetups;
     mapping(bytes32 hashIpIdAnInherited => EnumerableSet.UintSet policyIds) private _policiesPerIpId;
+    mapping(address ipId => EnumerableSet.AddressSet parentIpIds) private _ipIdParents;
     mapping(address framework => mapping(address ipId => bytes policyAggregatorData)) private _ipRights;
 
     modifier onlyLicenseRegistry() {
@@ -70,10 +65,12 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
         address accessController,
         address ipAccountRegistry,
         address royaltyModule,
-        address registry
+        address registry,
+        address disputeModule
     ) AccessControlled(accessController, ipAccountRegistry) {
         ROYALTY_MODULE = RoyaltyModule(royaltyModule);
         LICENSE_REGISTRY = ILicenseRegistry(registry);
+        DISPUTE_MODULE = IDisputeModule(disputeModule);
     }
 
     function licenseRegistry() external view returns (address) {
@@ -137,6 +134,7 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
         if (!isPolicyDefined(polId)) {
             revert Errors.LicensingModule__PolicyNotFound();
         }
+        _verifyIpNotDisputed(ipId);
 
         indexOnIpId = _addPolicyIdToIp({ ipId: ipId, policyId: polId, isInherited: false, skipIfDuplicate: false });
 
@@ -178,12 +176,12 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
         uint256 amount, // mint amount
         address receiver
     ) external nonReentrant returns (uint256 licenseId) {
-        // TODO: check if licensor has been tagged by disputer
         if (!IP_ACCOUNT_REGISTRY.isIpAccount(licensorIp)) {
             revert Errors.LicensingModule__LicensorNotRegistered();
         }
+        _verifyIpNotDisputed(licensorIp);
 
-        bool isInherited = _getPolicySetup(licensorIp, policyId).isInherited;
+        bool isInherited = _policySetups[licensorIp][policyId].isInherited;
         Licensing.Policy memory pol = policy(policyId);
 
         IPolicyFrameworkManager pfm = IPolicyFrameworkManager(pol.policyFramework);
@@ -269,6 +267,7 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
         address childIpId,
         uint32 minRoyalty
     ) external nonReentrant verifyPermission(childIpId) {
+        _verifyIpNotDisputed(childIpId);
         address holder = IIPAccount(payable(childIpId)).owner();
         address[] memory licensors = new address[](licenseIds.length);
         // If royalty policy address is address(0), this means no royalty policy to set.
@@ -278,6 +277,9 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
 
         for (uint256 i = 0; i < licenseIds.length; i++) {
             uint256 licenseId = licenseIds[i];
+            if (LICENSE_REGISTRY.isLicenseRevoked(licenseId)) {
+                revert Errors.LicensingModule__LinkingRevokedLicense();
+            }
             if (!LICENSE_REGISTRY.isLicensee(licenseId, holder)) {
                 revert Errors.LicensingModule__NotLicensee();
             }
@@ -388,31 +390,25 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
         address ipId,
         uint256 policyId
     ) external view returns (uint256 index, bool isInherited, bool active) {
-        PolicySetup memory setup = _getPolicySetup(ipId, policyId);
+        PolicySetup storage setup = _policySetups[ipId][policyId];
         return (setup.index, setup.isInherited, setup.active);
     }
 
     function isPolicyInherited(address ipId, uint256 policyId) external view returns (bool) {
-        return _getPolicySetup(ipId, policyId).isInherited;
+        return _policySetups[ipId][policyId].isInherited;
     }
 
     /// Returns true if the child is derivative from the parent, by at least 1 policy.
     function isParent(address parentIpId, address childIpId) external view returns (bool) {
-        address[] memory _parentIpIds = _getIpIdParents(childIpId);
-        for (uint256 i = 0; i < _parentIpIds.length; i++) {
-            if (_parentIpIds[i] == parentIpId) {
-                return true;
-            }
-        }
-        return false;
+        return _ipIdParents[childIpId].contains(parentIpId);
     }
 
     function parentIpIds(address ipId) external view returns (address[] memory) {
-        return _getIpIdParents(ipId);
+        return _ipIdParents[ipId].values();
     }
 
     function totalParentsForIpId(address ipId) external view returns (uint256) {
-        return _getIpIdParents(ipId).length;
+        return _ipIdParents[ipId].length();
     }
 
     function _verifyRegisteredFramework(address policyFramework) private view {
@@ -439,12 +435,12 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
         EnumerableSet.UintSet storage _pols = _policySetPerIpId(isInherited, ipId);
         if (!_pols.add(policyId)) {
             if (skipIfDuplicate) {
-                return _getPolicySetup(ipId, policyId).index;
+                return _policySetups[ipId][policyId].index;
             }
             revert Errors.LicensingModule__PolicyAlreadySetForIpId();
         }
         index = _pols.length() - 1;
-        PolicySetup memory setup = _getPolicySetup(ipId, policyId);
+        PolicySetup storage setup = _policySetups[ipId][policyId];
         // This should not happen, but just in case
         if (setup.isSet) {
             revert Errors.LicensingModule__PolicyAlreadySetForIpId();
@@ -453,9 +449,6 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
         setup.isSet = true;
         setup.active = true;
         setup.isInherited = isInherited;
-
-        _setPolicySetup(ipId, policyId, setup);
-
         emit PolicyAddedToIpId(msg.sender, ipId, policyId, index, isInherited);
         return index;
     }
@@ -533,7 +526,7 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
         // then the addition will be skipped.
         _addPolicyIdToIp({ ipId: childIpId, policyId: policyId, isInherited: true, skipIfDuplicate: true });
         // Set parent
-        _setParent(childIpId, licensor);
+        _ipIdParents[childIpId].add(licensor);
     }
 
     function _verifyCanAddPolicy(uint256 policyId, address ipId, bool isInherited) private {
@@ -563,22 +556,6 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
         }
     }
 
-    function _setParent(address childIpId, address parentIpId) private {
-        address[] memory _parentIpIds = _getIpIdParents(childIpId);
-        for (uint256 i = 0; i < _parentIpIds.length; i++) {
-            if (_parentIpIds[i] == parentIpId) {
-                // Parent already set
-                return;
-            }
-        }
-        address[] memory newParentIpIds = new address[](_parentIpIds.length + 1);
-        for (uint256 i = 0; i < _parentIpIds.length; i++) {
-            newParentIpIds[i] = _parentIpIds[i];
-        }
-        newParentIpIds[_parentIpIds.length] = parentIpId;
-        _setIpIdParents(childIpId, newParentIpIds);
-    }
-
     function _verifyPolicy(Licensing.Policy memory pol) private pure {
         if (pol.policyFramework == address(0)) {
             revert Errors.LicensingModule__PolicyNotFound();
@@ -589,38 +566,10 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
         return _policiesPerIpId[keccak256(abi.encode(isInherited, ipId))];
     }
 
-    function _getPolicySetup(address ipAccount, uint256 policyId) internal view returns (PolicySetup memory setup) {
-        bytes memory setupData = IIPAccount(payable(ipAccount)).getBytes(
-            IP_STORAGE_POLICY_SETUPS.toShortString(),
-            policyId.toShortString()
-        );
-        if (setupData.length != 0) {
-            setup = abi.decode(
-                IIPAccount(payable(ipAccount)).getBytes(
-                    IP_STORAGE_POLICY_SETUPS.toShortString(),
-                    policyId.toShortString()
-                ),
-                (PolicySetup)
-            );
+    function _verifyIpNotDisputed(address ipId) private view {
+        // TODO: in beta, any tag means revocation, for mainnet we need more context
+        if (DISPUTE_MODULE.isIpTagged(ipId)) {
+            revert Errors.LicensingModule__DisputedIpId();
         }
-    }
-
-    function _setPolicySetup(address ipAccount, uint256 policyId, PolicySetup memory setup) internal {
-        IIPAccount(payable(ipAccount)).setBytes(
-            IP_STORAGE_POLICY_SETUPS.toShortString(),
-            policyId.toShortString(),
-            abi.encode(setup)
-        );
-    }
-
-    function _setIpIdParents(address ipAccount, address[] memory _parentIpIds) internal {
-        IIPAccount(payable(ipAccount)).setBytes(IP_STORAGE_PARENTS.toShortString(), abi.encode(_parentIpIds));
-    }
-
-    function _getIpIdParents(address ipAccount) internal view returns (address[] memory parentIpIds_) {
-        if (!IP_ACCOUNT_REGISTRY.isIpAccount(ipAccount)) return new address[](0);
-        bytes memory parentIpIdsData = IIPAccount(payable(ipAccount)).getBytes(IP_STORAGE_PARENTS.toShortString());
-        if (parentIpIdsData.length == 0) return new address[](0);
-        parentIpIds_ = abi.decode(parentIpIdsData, (address[]));
     }
 }
