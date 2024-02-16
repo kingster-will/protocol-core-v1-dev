@@ -3,7 +3,6 @@ pragma solidity ^0.8.23;
 
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { Base64 } from "@openzeppelin/contracts/utils/Base64.sol";
-import { IModule } from "../../../../contracts/interfaces/modules/base/IModule.sol";
 import { IViewModule } from "../../../../contracts/interfaces/modules/base/IViewModule.sol";
 import { IIPAccount } from "../../../../contracts/interfaces/IIPAccount.sol";
 import { BaseModule } from "../../../../contracts/modules/BaseModule.sol";

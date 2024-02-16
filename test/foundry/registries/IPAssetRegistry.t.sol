@@ -8,7 +8,7 @@ import { IPAssetRegistry } from "contracts/registries/IPAssetRegistry.sol";
 import { Errors } from "contracts/lib/Errors.sol";
 import { IIPAccount } from "contracts/interfaces/IIPAccount.sol";
 import { IPAccountStorageOps } from "contracts/lib/IPAccountStorageOps.sol";
-import { ShortString, ShortStrings } from "@openzeppelin/contracts/utils/ShortStrings.sol";
+import { ShortStrings } from "@openzeppelin/contracts/utils/ShortStrings.sol";
 
 import { BaseTest } from "../utils/BaseTest.t.sol";
 
@@ -97,8 +97,6 @@ contract IPAssetRegistryTest is BaseTest {
 
     /// @notice Tests registration of IP assets without licenses.
     function test_IPAssetRegistry_revert_RegisterPermissionlessTwice() public {
-        uint256 totalSupply = registry.totalSupply();
-
         assertTrue(!registry.isRegistered(ipId));
         assertTrue(!IPAccountChecker.isRegistered(ipAccountRegistry, block.chainid, tokenAddress, tokenId));
 

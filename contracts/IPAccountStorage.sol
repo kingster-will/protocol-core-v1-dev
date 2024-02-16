@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.23;
 
-import { IIPAccount } from "./interfaces/IIPAccount.sol";
 import { IIPAccountStorage } from "./interfaces/IIPAccountStorage.sol";
 import { ShortString, ShortStrings } from "@openzeppelin/contracts/utils/ShortStrings.sol";
-
 
 /// @title IPAccountImpl
 /// @notice The Story Protocol's implementation of the IPAccount.

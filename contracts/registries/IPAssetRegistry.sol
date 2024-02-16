@@ -98,11 +98,7 @@ contract IPAssetRegistry is IIPAssetRegistry, IPAccountRegistry, Governable {
     /// @param chainId The chain identifier of where the NFT resides.
     /// @param tokenContract The address of the NFT.
     /// @param tokenId The token identifier of the NFT.
-    function register(
-        uint256 chainId,
-        address tokenContract,
-        uint256 tokenId
-    ) external returns (address id) {
+    function register(uint256 chainId, address tokenContract, uint256 tokenId) external returns (address id) {
         id = registerIpAccount(chainId, tokenContract, tokenId);
         IIPAccount ipAccount = IIPAccount(payable(id));
 

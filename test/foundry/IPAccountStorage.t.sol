@@ -2,7 +2,6 @@
 pragma solidity ^0.8.23;
 
 import { ERC6551Registry } from "erc6551/ERC6551Registry.sol";
-import { IERC6551Account } from "erc6551/interfaces/IERC6551Account.sol";
 import { Test } from "forge-std/Test.sol";
 
 import { IPAccountImpl } from "contracts/IPAccountImpl.sol";
@@ -10,15 +9,12 @@ import { IIPAccount } from "contracts/interfaces/IIPAccount.sol";
 import { IPAccountRegistry } from "contracts/registries/IPAccountRegistry.sol";
 import { ModuleRegistry } from "contracts/registries/ModuleRegistry.sol";
 import { Governance } from "contracts/governance/Governance.sol";
-import { Errors } from "contracts/lib/Errors.sol";
 
 import { MockAccessController } from "test/foundry/mocks/access/MockAccessController.sol";
 import { MockERC721 } from "test/foundry/mocks/token/MockERC721.sol";
 import { MockModule } from "test/foundry/mocks/module/MockModule.sol";
-import { IPAccountStorageOps } from "contracts/lib/IPAccountStorageOps.sol";
 
 contract IPAccountStorageTest is Test {
-
     IPAccountRegistry public registry;
     IPAccountImpl public implementation;
     MockERC721 public nft = new MockERC721("MockERC721");
@@ -70,7 +66,7 @@ contract IPAccountStorageTest is Test {
         vm.prank(vm.addr(1));
         ipAccount.setBytes("test", abi.encode(addresses));
         vm.prank(vm.addr(2));
-        address[] memory result = abi.decode(ipAccount.getBytes(_toBytes32(vm.addr(1)) ,"test"), (address[]));
+        address[] memory result = abi.decode(ipAccount.getBytes(_toBytes32(vm.addr(1)), "test"), (address[]));
         assertEq(result[0], vm.addr(1));
         assertEq(result[1], vm.addr(2));
     }
@@ -194,5 +190,4 @@ contract IPAccountStorageTest is Test {
     function _toBytes32(address a) internal pure returns (bytes32) {
         return bytes32(uint256(uint160(a)));
     }
-
 }

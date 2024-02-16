@@ -50,7 +50,12 @@ contract IPAccountMetaTxTest is Test {
         registry = new IPAccountRegistry(address(erc6551Registry), address(accessController), address(implementation));
         accessController.initialize(address(registry), address(moduleRegistry));
         module = new MockModule(address(registry), address(moduleRegistry), "Module1WithPermission");
-        accessControlledModule = new MockAccessControlledModule(address(accessController), address(registry), address(moduleRegistry), "AccessControlledModule");
+        accessControlledModule = new MockAccessControlledModule(
+            address(accessController),
+            address(registry),
+            address(moduleRegistry),
+            "AccessControlledModule"
+        );
         metaTxModule = new MockMetaTxModule(address(registry), address(moduleRegistry), address(accessController));
         moduleRegistry.registerModule("Module1WithPermission", address(module));
         moduleRegistry.registerModule("MockMetaTxModule", address(metaTxModule));

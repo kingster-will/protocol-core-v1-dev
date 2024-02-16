@@ -13,7 +13,7 @@ import { IAccessController } from "./interfaces/IAccessController.sol";
 import { IIPAccount } from "./interfaces/IIPAccount.sol";
 import { MetaTx } from "./lib/MetaTx.sol";
 import { Errors } from "./lib/Errors.sol";
-import {IPAccountStorage} from "./IPAccountStorage.sol";
+import { IPAccountStorage } from "./IPAccountStorage.sol";
 
 /// @title IPAccountImpl
 /// @notice The Story Protocol's implementation of the IPAccount.

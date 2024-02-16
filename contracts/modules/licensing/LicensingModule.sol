@@ -7,7 +7,7 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { ERC165Checker } from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import { ShortString, ShortStrings } from "@openzeppelin/contracts/utils/ShortStrings.sol";
+import { ShortStrings } from "@openzeppelin/contracts/utils/ShortStrings.sol";
 
 import { IIPAccount } from "../../interfaces/IIPAccount.sol";
 import { IPAccountStorageOps } from "../../lib/IPAccountStorageOps.sol";
@@ -590,17 +590,27 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
     }
 
     function _getPolicySetup(address ipAccount, uint256 policyId) internal view returns (PolicySetup memory setup) {
-        bytes memory setupData = IIPAccount(payable(ipAccount)).getBytes(IP_STORAGE_POLICY_SETUPS.toShortString(), policyId.toShortString());
+        bytes memory setupData = IIPAccount(payable(ipAccount)).getBytes(
+            IP_STORAGE_POLICY_SETUPS.toShortString(),
+            policyId.toShortString()
+        );
         if (setupData.length != 0) {
             setup = abi.decode(
-                IIPAccount(payable(ipAccount)).getBytes(IP_STORAGE_POLICY_SETUPS.toShortString(), policyId.toShortString()),
+                IIPAccount(payable(ipAccount)).getBytes(
+                    IP_STORAGE_POLICY_SETUPS.toShortString(),
+                    policyId.toShortString()
+                ),
                 (PolicySetup)
             );
         }
     }
 
     function _setPolicySetup(address ipAccount, uint256 policyId, PolicySetup memory setup) internal {
-        IIPAccount(payable(ipAccount)).setBytes(IP_STORAGE_POLICY_SETUPS.toShortString(), policyId.toShortString(), abi.encode(setup));
+        IIPAccount(payable(ipAccount)).setBytes(
+            IP_STORAGE_POLICY_SETUPS.toShortString(),
+            policyId.toShortString(),
+            abi.encode(setup)
+        );
     }
 
     function _setIpIdParents(address ipAccount, address[] memory _parentIpIds) internal {

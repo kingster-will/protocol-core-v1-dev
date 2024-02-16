@@ -7,5 +7,5 @@ import { IModule } from "./IModule.sol";
 /// @notice Hook Module Interface
 interface IViewModule is IModule {
     /// @notice check whether the view module is supported for the given IP account
-    function isSupported(address ipAccount) external returns(bool);
+    function isSupported(address ipAccount) external returns (bool);
 }
