@@ -3,10 +3,12 @@
 pragma solidity ^0.8.23;
 
 import { ShortString, ShortStrings } from "@openzeppelin/contracts/utils/ShortStrings.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 
 /// @notice Library for working with Openzeppelin's ShortString data types.
 library ShortStringOps {
     using ShortStrings for *;
+    using Strings for *;
 
     /// @dev Compares whether two ShortStrings are equal.
     function equal(ShortString a, ShortString b) internal pure returns (bool) {
@@ -44,5 +46,9 @@ library ShortStringOps {
 
     function bytes32ToString(bytes32 b) internal pure returns (string memory) {
         return ShortString.wrap(b).toString();
+    }
+
+    function toShortString(uint256 value) internal pure returns (ShortString) {
+        return value.toString().toShortString();
     }
 }

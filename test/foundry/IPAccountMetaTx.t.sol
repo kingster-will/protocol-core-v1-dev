@@ -18,6 +18,7 @@ import { Errors } from "contracts/lib/Errors.sol";
 import { MockERC721 } from "test/foundry/mocks/token/MockERC721.sol";
 import { MockModule } from "test/foundry/mocks/module/MockModule.sol";
 import { MockMetaTxModule } from "test/foundry/mocks/module/MockMetaTxModule.sol";
+import { MockAccessControlledModule } from "test/foundry/mocks/module/MockAccessControlledModule.sol";
 
 contract IPAccountMetaTxTest is Test {
     IPAccountRegistry public registry;
@@ -27,6 +28,7 @@ contract IPAccountMetaTxTest is Test {
     AccessController public accessController;
     ModuleRegistry public moduleRegistry;
     MockModule public module;
+    MockAccessControlledModule public accessControlledModule;
     MockMetaTxModule public metaTxModule;
 
     uint256 public ownerPrivateKey;
@@ -48,9 +50,11 @@ contract IPAccountMetaTxTest is Test {
         registry = new IPAccountRegistry(address(erc6551Registry), address(accessController), address(implementation));
         accessController.initialize(address(registry), address(moduleRegistry));
         module = new MockModule(address(registry), address(moduleRegistry), "Module1WithPermission");
+        accessControlledModule = new MockAccessControlledModule(address(accessController), address(registry), address(moduleRegistry), "AccessControlledModule");
         metaTxModule = new MockMetaTxModule(address(registry), address(moduleRegistry), address(accessController));
         moduleRegistry.registerModule("Module1WithPermission", address(module));
         moduleRegistry.registerModule("MockMetaTxModule", address(metaTxModule));
+        moduleRegistry.registerModule("AccessControlledModule", address(accessControlledModule));
     }
 
     // test called by unauthorized module with signature
@@ -147,6 +151,52 @@ contract IPAccountMetaTxTest is Test {
         assertEq("test", abi.decode(result, (string)));
 
         assertEq(ipAccount.state(), 2);
+    }
+
+    function test_IPAccount_setPermissionWithSignatureThenCallAccessControlledModule() public {
+        uint256 tokenId = 100;
+
+        nft.mintId(owner, tokenId);
+
+        address account = registry.registerIpAccount(block.chainid, address(nft), tokenId);
+
+        IIPAccount ipAccount = IIPAccount(payable(account));
+
+        uint deadline = block.timestamp + 1000;
+
+        bytes32 digest = MessageHashUtils.toTypedDataHash(
+            MetaTx.calculateDomainSeparator(address(ipAccount)),
+            MetaTx.getExecuteStructHash(
+                MetaTx.Execute({
+                    to: address(accessController),
+                    value: 0,
+                    data: abi.encodeWithSignature(
+                        "setPermission(address,address,address,bytes4,uint8)",
+                        address(ipAccount),
+                        address(metaTxModule),
+                        address(accessControlledModule),
+                        bytes4(0),
+                        AccessPermission.ALLOW
+                    ),
+                    nonce: ipAccount.state() + 1,
+                    deadline: deadline
+                })
+            )
+        );
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, digest);
+
+        bytes memory signature = abi.encodePacked(r, s, v);
+        vm.prank(caller);
+        string memory result = metaTxModule.setPermissionThenCallOtherAccessControlledModule(
+            payable(address(ipAccount)),
+            owner,
+            deadline,
+            signature
+        );
+        assertEq("test", result);
+
+        assertEq(ipAccount.state(), 1);
     }
 
     function test_IPAccount_revert_SignatureExpired() public {

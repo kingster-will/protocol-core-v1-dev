@@ -3,7 +3,9 @@
 pragma solidity ^0.8.23;
 
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import { IERC721Metadata } from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import { ERC165Checker } from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 
 import { IIPAccount } from "../interfaces/IIPAccount.sol";
 import { IIPAssetRegistry } from "../interfaces/registries/IIPAssetRegistry.sol";
@@ -18,6 +20,7 @@ import { ILicensingModule } from "../interfaces/modules/licensing/ILicensingModu
 import { IIPAssetRegistry } from "../interfaces/registries/IIPAssetRegistry.sol";
 import { IRegistrationModule } from "../interfaces/modules/IRegistrationModule.sol";
 import { Governable } from "../governance/Governable.sol";
+import { IPAccountStorageOps } from "../lib/IPAccountStorageOps.sol";
 
 /// @title IP Asset Registry
 /// @notice This contract acts as the source of truth for all IP registered in
@@ -29,6 +32,8 @@ import { Governable } from "../governance/Governable.sol";
 ///         IMPORTANT: The IP account address, besides being used for protocol
 ///                    auth, is also the canonical IP identifier for the IP NFT.
 contract IPAssetRegistry is IIPAssetRegistry, IPAccountRegistry, Governable {
+    using Strings for *;
+    using IPAccountStorageOps for IIPAccount;
     /// @notice Attributes for the IP asset type.
     struct Record {
         // Metadata provider for Story Protocol canonicalized metadata.
@@ -93,6 +98,34 @@ contract IPAssetRegistry is IIPAssetRegistry, IPAccountRegistry, Governable {
     /// @param chainId The chain identifier of where the NFT resides.
     /// @param tokenContract The address of the NFT.
     /// @param tokenId The token identifier of the NFT.
+    function register(
+        uint256 chainId,
+        address tokenContract,
+        uint256 tokenId
+    ) external returns (address id) {
+        id = registerIpAccount(chainId, tokenContract, tokenId);
+        IIPAccount ipAccount = IIPAccount(payable(id));
+
+        if (bytes(ipAccount.getString("NAME")).length != 0) {
+            revert Errors.IPAssetRegistry__AlreadyRegistered();
+        }
+
+        string memory name = string.concat(IERC721Metadata(tokenContract).name(), " #", tokenId.toString());
+        string memory uri = IERC721Metadata(tokenContract).tokenURI(tokenId);
+        uint256 registrationDate = block.timestamp;
+        ipAccount.setString("NAME", name);
+        ipAccount.setString("URI", uri);
+        ipAccount.setUint256("REGISTRATION_DATE", registrationDate);
+
+        totalSupply++;
+
+        emit NewIPRegistered(id, chainId, tokenContract, tokenId, name, uri, registrationDate);
+    }
+
+    /// @notice Registers an NFT as an IP asset.
+    /// @param chainId The chain identifier of where the NFT resides.
+    /// @param tokenContract The address of the NFT.
+    /// @param tokenId The token identifier of the NFT.
     /// @param resolverAddr The address of the resolver to associate with the IP.
     /// @param createAccount Whether to create an IP account when registering.
     /// @param data Canonical metadata to associate with the IP.
@@ -144,7 +177,7 @@ contract IPAssetRegistry is IIPAssetRegistry, IPAccountRegistry, Governable {
     /// @param id The canonical identifier for the IP.
     /// @return Whether the IP was registered into the protocol.
     function isRegistered(address id) external view returns (bool) {
-        return _records[id].resolver != address(0);
+        return _records[id].resolver != address(0) || id.code.length != 0;
     }
 
     /// @notice Gets the resolver bound to an IP based on its ID.

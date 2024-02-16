@@ -163,7 +163,7 @@ contract TestRoyaltyModule is BaseTest {
         vm.startPrank(address(licensingModule));
         royaltyModule.setRoyaltyPolicy(ipAccount1, address(royaltyPolicyLS), parentIpIds1, data);
 
-        assertEq(royaltyModule.royaltyPolicies(ipAccount1), address(royaltyPolicyLS));
+        assertEq(royaltyModule.getRoyaltyPolicy(ipAccount1), address(royaltyPolicyLS));
     }
 
     function test_RoyaltyModule_payRoyaltyOnBehalf_revert_NoRoyaltyPolicySet() public {

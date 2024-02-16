@@ -11,14 +11,22 @@ import { IRoyaltyPolicy } from "../../interfaces/modules/royalty/policies/IRoyal
 import { Errors } from "../../lib/Errors.sol";
 import { ROYALTY_MODULE_KEY } from "../../lib/modules/Module.sol";
 import { BaseModule } from "../BaseModule.sol";
+import { IIPAccount } from "contracts/interfaces/IIPAccount.sol";
+import { IPAccountStorageOps } from "contracts/lib/IPAccountStorageOps.sol";
 
 /// @title Story Protocol Royalty Module
 /// @notice The Story Protocol royalty module allows to set royalty policies an ipId
 ///         and pay royalties as a derivative ip.
 contract RoyaltyModule is IRoyaltyModule, Governable, ReentrancyGuard, BaseModule {
     using ERC165Checker for address;
+    using IPAccountStorageOps for IIPAccount;
 
     string public constant override name = ROYALTY_MODULE_KEY;
+
+    /// @notice Indicates the royalty policy for a given ipId
+    bytes32 public constant IP_STORAGE_ROYALTY_POLICY = "royaltyPolicy";
+    /// @notice Indicates if a royalty policy is immutable
+    bytes32 public constant IP_STORAGE_ROYALTY_POLICY_IMMUTABLE = "royaltyPolicyImmutable";
 
     /// @notice Licensing module address
     address public LICENSING_MODULE;
@@ -28,12 +36,6 @@ contract RoyaltyModule is IRoyaltyModule, Governable, ReentrancyGuard, BaseModul
 
     /// @notice Indicates if a royalty token is whitelisted
     mapping(address token => bool) public isWhitelistedRoyaltyToken;
-
-    /// @notice Indicates the royalty policy for a given ipId
-    mapping(address ipId => address royaltyPolicy) public royaltyPolicies;
-
-    /// @notice Indicates if a royalty policy is immutable
-    mapping(address ipId => bool) public isRoyaltyPolicyImmutable;
 
     /// @notice Constructor
     /// @param _governance The address of the governance contract
@@ -87,19 +89,19 @@ contract RoyaltyModule is IRoyaltyModule, Governable, ReentrancyGuard, BaseModul
         address[] calldata _parentIpIds,
         bytes calldata _data
     ) external nonReentrant onlyLicensingModule {
-        if (isRoyaltyPolicyImmutable[_ipId]) revert Errors.RoyaltyModule__AlreadySetRoyaltyPolicy();
+        if (isRoyaltyPolicyImmutable(_ipId)) revert Errors.RoyaltyModule__AlreadySetRoyaltyPolicy();
         if (!isWhitelistedRoyaltyPolicy[_royaltyPolicy]) revert Errors.RoyaltyModule__NotWhitelistedRoyaltyPolicy();
 
-        if (_parentIpIds.length > 0) isRoyaltyPolicyImmutable[_ipId] = true;
+        if (_parentIpIds.length > 0) _setRoyaltyPolicyImmutable(_ipId, true);
 
         // the loop below is limited to 100 iterations
         for (uint32 i = 0; i < _parentIpIds.length; i++) {
-            if (royaltyPolicies[_parentIpIds[i]] != _royaltyPolicy)
+            if (getRoyaltyPolicy(_parentIpIds[i]) != _royaltyPolicy)
                 revert Errors.RoyaltyModule__IncompatibleRoyaltyPolicy();
-            isRoyaltyPolicyImmutable[_parentIpIds[i]] = true;
+            _setRoyaltyPolicyImmutable(_parentIpIds[i], true);
         }
 
-        royaltyPolicies[_ipId] = _royaltyPolicy;
+        _setRoyaltyPolicy(_ipId, _royaltyPolicy);
 
         IRoyaltyPolicy(_royaltyPolicy).initPolicy(_ipId, _parentIpIds, _data);
 
@@ -107,11 +109,11 @@ contract RoyaltyModule is IRoyaltyModule, Governable, ReentrancyGuard, BaseModul
     }
 
     function setRoyaltyPolicyImmutable(address _ipId) external onlyLicensingModule {
-        isRoyaltyPolicyImmutable[_ipId] = true;
+        _setRoyaltyPolicyImmutable(_ipId, true);
     }
 
     function minRoyaltyFromDescendants(address _ipId) external view returns (uint256) {
-        address royaltyPolicy = royaltyPolicies[_ipId];
+        address royaltyPolicy = getRoyaltyPolicy(_ipId);
         if (royaltyPolicy == address(0)) revert Errors.RoyaltyModule__NoRoyaltyPolicySet();
 
         return IRoyaltyPolicy(royaltyPolicy).minRoyaltyFromDescendants(_ipId);
@@ -128,7 +130,7 @@ contract RoyaltyModule is IRoyaltyModule, Governable, ReentrancyGuard, BaseModul
         address _token,
         uint256 _amount
     ) external nonReentrant {
-        address royaltyPolicy = royaltyPolicies[_receiverIpId];
+        address royaltyPolicy = getRoyaltyPolicy(_receiverIpId);
         if (royaltyPolicy == address(0)) revert Errors.RoyaltyModule__NoRoyaltyPolicySet();
         if (!isWhitelistedRoyaltyToken[_token]) revert Errors.RoyaltyModule__NotWhitelistedRoyaltyToken();
         if (!isWhitelistedRoyaltyPolicy[royaltyPolicy]) revert Errors.RoyaltyModule__NotWhitelistedRoyaltyPolicy();
@@ -140,5 +142,21 @@ contract RoyaltyModule is IRoyaltyModule, Governable, ReentrancyGuard, BaseModul
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(BaseModule, IERC165) returns (bool) {
         return interfaceId == type(IRoyaltyModule).interfaceId || super.supportsInterface(interfaceId);
+    }
+
+    function getRoyaltyPolicy(address ipAccount) public view returns (address) {
+        return IIPAccount(payable(ipAccount)).getAddress(IP_STORAGE_ROYALTY_POLICY);
+    }
+
+    function _setRoyaltyPolicy(address ipAccount, address royaltyPolicy) internal {
+        IIPAccount(payable(ipAccount)).setAddress(IP_STORAGE_ROYALTY_POLICY, royaltyPolicy);
+    }
+
+    function isRoyaltyPolicyImmutable(address ipAccount) public view returns (bool) {
+        return IIPAccount(payable(ipAccount)).getBool(IP_STORAGE_ROYALTY_POLICY_IMMUTABLE);
+    }
+
+    function _setRoyaltyPolicyImmutable(address ipAccount, bool isImmutable) internal {
+        IIPAccount(payable(ipAccount)).setBool(IP_STORAGE_ROYALTY_POLICY_IMMUTABLE, isImmutable);
     }
 }

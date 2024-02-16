@@ -138,9 +138,10 @@ contract RoyaltyPolicyLS is IRoyaltyPolicyLS, ERC1155Holder {
     function distributeFunds(
         address _ipId,
         address _token,
-        address[] calldata _accounts,
+        address[] memory _accounts,
         address _distributorAddress
     ) external {
+        _sort(_accounts);
         ILiquidSplitClone(royaltyData[_ipId].splitClone).distributeFunds(_token, _accounts, _distributorAddress);
     }
 
@@ -196,5 +197,18 @@ contract RoyaltyPolicyLS is IRoyaltyPolicyLS, ERC1155Holder {
         );
 
         return splitClone;
+    }
+
+    function _sort(address[] memory data) internal pure {
+        uint length = data.length;
+        for (uint i = 1; i < length; i++) {
+            address key = data[i];
+            int j = int(i - 1);
+            while ((j >= 0) && (data[uint(j)] > key)) {
+                data[uint(j) + 1] = data[uint(j)];
+                j--;
+            }
+            data[uint(j + 1)] = key;
+        }
     }
 }

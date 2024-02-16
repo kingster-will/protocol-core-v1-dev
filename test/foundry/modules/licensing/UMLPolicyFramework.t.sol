@@ -445,7 +445,4 @@ contract UMLPolicyFrameworkTest is BaseTest {
         vm.stopPrank();
     }
 
-    function onERC721Received(address, address, uint256, bytes memory) public pure returns (bytes4) {
-        return this.onERC721Received.selector;
-    }
 }
