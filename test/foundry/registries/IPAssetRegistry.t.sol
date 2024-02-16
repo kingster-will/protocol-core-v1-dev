@@ -81,7 +81,7 @@ contract IPAssetRegistryTest is BaseTest {
             block.chainid,
             tokenAddress,
             tokenId,
-            "MockERC721 #99",
+            "Ape #99",
             "https://storyprotocol.xyz/erc721/99",
             block.timestamp
         );
@@ -90,7 +90,7 @@ contract IPAssetRegistryTest is BaseTest {
 
         assertEq(totalSupply + 1, registry.totalSupply());
         assertTrue(IPAccountChecker.isRegistered(ipAccountRegistry, block.chainid, tokenAddress, tokenId));
-        assertEq(IIPAccount(payable(ipId)).getString(address(registry), "NAME"), "MockERC721 #99");
+        assertEq(IIPAccount(payable(ipId)).getString(address(registry), "NAME"), "Ape #99");
         assertEq(IIPAccount(payable(ipId)).getString(address(registry), "URI"), "https://storyprotocol.xyz/erc721/99");
         assertEq(IIPAccount(payable(ipId)).getUint256(address(registry), "REGISTRATION_DATE"), block.timestamp);
     }

@@ -96,7 +96,7 @@ contract RoyaltyModule is IRoyaltyModule, Governable, ReentrancyGuard, BaseModul
 
         // the loop below is limited to 100 iterations
         for (uint32 i = 0; i < _parentIpIds.length; i++) {
-            if (getRoyaltyPolicy(_parentIpIds[i]) != _royaltyPolicy)
+            if (_getRoyaltyPolicy(_parentIpIds[i]) != _royaltyPolicy)
                 revert Errors.RoyaltyModule__IncompatibleRoyaltyPolicy();
             _setRoyaltyPolicyImmutable(_parentIpIds[i], true);
         }
@@ -113,7 +113,7 @@ contract RoyaltyModule is IRoyaltyModule, Governable, ReentrancyGuard, BaseModul
     }
 
     function minRoyaltyFromDescendants(address _ipId) external view returns (uint256) {
-        address royaltyPolicy = getRoyaltyPolicy(_ipId);
+        address royaltyPolicy = _getRoyaltyPolicy(_ipId);
         if (royaltyPolicy == address(0)) revert Errors.RoyaltyModule__NoRoyaltyPolicySet();
 
         return IRoyaltyPolicy(royaltyPolicy).minRoyaltyFromDescendants(_ipId);
@@ -130,7 +130,7 @@ contract RoyaltyModule is IRoyaltyModule, Governable, ReentrancyGuard, BaseModul
         address _token,
         uint256 _amount
     ) external nonReentrant {
-        address royaltyPolicy = getRoyaltyPolicy(_receiverIpId);
+        address royaltyPolicy = _getRoyaltyPolicy(_receiverIpId);
         if (royaltyPolicy == address(0)) revert Errors.RoyaltyModule__NoRoyaltyPolicySet();
         if (!isWhitelistedRoyaltyToken[_token]) revert Errors.RoyaltyModule__NotWhitelistedRoyaltyToken();
         if (!isWhitelistedRoyaltyPolicy[royaltyPolicy]) revert Errors.RoyaltyModule__NotWhitelistedRoyaltyPolicy();
@@ -140,23 +140,27 @@ contract RoyaltyModule is IRoyaltyModule, Governable, ReentrancyGuard, BaseModul
         emit RoyaltyPaid(_receiverIpId, _payerIpId, msg.sender, _token, _amount);
     }
 
+    function royaltyPolicies(address ipId) external view returns (address) {
+        return _getRoyaltyPolicy(ipId);
+    }
+
     function supportsInterface(bytes4 interfaceId) public view virtual override(BaseModule, IERC165) returns (bool) {
         return interfaceId == type(IRoyaltyModule).interfaceId || super.supportsInterface(interfaceId);
-    }
-
-    function getRoyaltyPolicy(address ipAccount) public view returns (address) {
-        return IIPAccount(payable(ipAccount)).getAddress(IP_STORAGE_ROYALTY_POLICY);
-    }
-
-    function _setRoyaltyPolicy(address ipAccount, address royaltyPolicy) internal {
-        IIPAccount(payable(ipAccount)).setAddress(IP_STORAGE_ROYALTY_POLICY, royaltyPolicy);
     }
 
     function isRoyaltyPolicyImmutable(address ipAccount) public view returns (bool) {
         return IIPAccount(payable(ipAccount)).getBool(IP_STORAGE_ROYALTY_POLICY_IMMUTABLE);
     }
 
+    function _setRoyaltyPolicy(address ipAccount, address royaltyPolicy) internal {
+        IIPAccount(payable(ipAccount)).setAddress(IP_STORAGE_ROYALTY_POLICY, royaltyPolicy);
+    }
+
     function _setRoyaltyPolicyImmutable(address ipAccount, bool isImmutable) internal {
         IIPAccount(payable(ipAccount)).setBool(IP_STORAGE_ROYALTY_POLICY_IMMUTABLE, isImmutable);
+    }
+
+    function _getRoyaltyPolicy(address ipAccount) internal view returns (address) {
+        return IIPAccount(payable(ipAccount)).getAddress(IP_STORAGE_ROYALTY_POLICY);
     }
 }

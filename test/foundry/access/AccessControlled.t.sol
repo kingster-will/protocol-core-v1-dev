@@ -15,7 +15,7 @@ import { IPAccountRegistry } from "contracts/registries/IPAccountRegistry.sol";
 import { ModuleRegistry } from "contracts/registries/ModuleRegistry.sol";
 import { MockERC721 } from "test/foundry/mocks/token/MockERC721.sol";
 import { Governance } from "contracts/governance/Governance.sol";
-import { MockAccessControlledModule } from "test/foundry/mocks/MockAccessControlledModule.sol";
+import { MockAccessControlledModule } from "../mocks/module/MockAccessControlledModule.sol";
 
 contract AccessControlledTest is Test {
     AccessController public accessController;

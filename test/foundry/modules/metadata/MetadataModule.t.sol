@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import { ERC6551Registry } from "@erc6551/ERC6551Registry.sol";
-import { IERC6551Account } from "@erc6551/interfaces/IERC6551Account.sol";
+import { ERC6551Registry } from "erc6551/ERC6551Registry.sol";
+import { IERC6551Account } from "erc6551/interfaces/IERC6551Account.sol";
 import { Test } from "forge-std/Test.sol";
 
-import { IPAccountImpl } from "contracts/IPAccountImpl.sol";
-import { IIPAccount } from "contracts/interfaces/IIPAccount.sol";
-import { IPAssetRegistry } from "contracts/registries/IPAssetRegistry.sol";
-import { ModuleRegistry } from "contracts/registries/ModuleRegistry.sol";
-import { Governance } from "contracts/governance/Governance.sol";
-import { Errors } from "contracts/lib/Errors.sol";
+import { IPAccountImpl } from "../../../../contracts/IPAccountImpl.sol";
+import { IIPAccount } from "../../../../contracts/interfaces/IIPAccount.sol";
+import { IPAssetRegistry } from "../../../../contracts/registries/IPAssetRegistry.sol";
+import { ModuleRegistry } from "../../../../contracts/registries/ModuleRegistry.sol";
+import { Governance } from "../../../../contracts/governance/Governance.sol";
+import { Errors } from "../../../../contracts/lib/Errors.sol";
 
-import { MockAccessController } from "test/foundry/mocks/MockAccessController.sol";
-import { MockERC721 } from "test/foundry/mocks/MockERC721.sol";
-import { MockModule } from "test/foundry/mocks/MockModule.sol";
-import { MockCoreMetadataViewModule } from "test/foundry/mocks/MockCoreMetadataViewModule.sol";
-import { MockAllMetadataViewModule } from "test/foundry/mocks/MockAllMetadataViewModule.sol";
-import { MockMetadataModule } from "test/foundry/mocks/MockMetadataModule.sol";
+import { MockAccessController } from "../../mocks/access/MockAccessController.sol";
+import { MockERC721 } from "../../mocks/token/MockERC721.sol";
+import { MockModule } from "../../mocks/module/MockModule.sol";
+import { MockCoreMetadataViewModule } from "../../mocks/module/MockCoreMetadataViewModule.sol";
+import { MockAllMetadataViewModule } from "../../mocks/module/MockAllMetadataViewModule.sol";
+import { MockMetadataModule } from "../../mocks/module/MockMetadataModule.sol";
 
 contract MetadataModuleTest is Test {
     IPAssetRegistry public registry;

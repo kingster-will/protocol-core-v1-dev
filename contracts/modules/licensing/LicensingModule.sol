@@ -10,7 +10,7 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 import { ShortString, ShortStrings } from "@openzeppelin/contracts/utils/ShortStrings.sol";
 
 import { IIPAccount } from "../../interfaces/IIPAccount.sol";
-import { IPAccountStorageOps } from "contracts/lib/IPAccountStorageOps.sol";
+import { IPAccountStorageOps } from "../../lib/IPAccountStorageOps.sol";
 import { IPolicyFrameworkManager } from "../../interfaces/modules/licensing/IPolicyFrameworkManager.sol";
 import { ILicenseRegistry } from "../../interfaces/registries/ILicenseRegistry.sol";
 import { ILicensingModule } from "../../interfaces/modules/licensing/ILicensingModule.sol";
@@ -220,7 +220,7 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
                     if (commercialRevenueShare != minRoyalty) {
                         revert Errors.LicensingModule__MismatchBetweenCommercialRevenueShareAndMinRoyalty();
                     }
-                    if (newRoyaltyPolicy != ROYALTY_MODULE.getRoyaltyPolicy(licensorIp)) {
+                    if (newRoyaltyPolicy != ROYALTY_MODULE.royaltyPolicies(licensorIp)) {
                         revert Errors.LicensingModule__MismatchBetweenRoyaltyPolicy();
                     }
                 }

@@ -14,8 +14,8 @@ contract TestRoyaltyModule is BaseTest {
     event RoyaltyPolicySet(address ipId, address royaltyPolicy, bytes data);
     event RoyaltyPaid(address receiverIpId, address payerIpId, address sender, address token, uint256 amount);
 
-    address internal ipAccount1 = address(0x111000aaa);
-    address internal ipAccount2 = address(0x111000bbb);
+    address internal ipAccount1;
+    address internal ipAccount2;
 
     function setUp() public override {
         super.setUp();
@@ -31,7 +31,10 @@ contract TestRoyaltyModule is BaseTest {
         buildDeployPolicyCondition(DeployPolicyCondition({ arbitrationPolicySP: false, royaltyPolicyLS: true }));
         deployConditionally();
         postDeploymentSetup();
-
+        mockNFT.mintId(address(this), 901);
+        mockNFT.mintId(address(this), 902);
+        ipAccount1 = ipAssetRegistry.register(block.chainid, address(mockNFT), 901);
+        ipAccount2 = ipAssetRegistry.register(block.chainid, address(mockNFT), 902);
         USDC.mint(address(ipAccount2), 1000 * 10 ** 6); // 1000 USDC
     }
 
@@ -163,7 +166,7 @@ contract TestRoyaltyModule is BaseTest {
         vm.startPrank(address(licensingModule));
         royaltyModule.setRoyaltyPolicy(ipAccount1, address(royaltyPolicyLS), parentIpIds1, data);
 
-        assertEq(royaltyModule.getRoyaltyPolicy(ipAccount1), address(royaltyPolicyLS));
+        assertEq(royaltyModule.royaltyPolicies(ipAccount1), address(royaltyPolicyLS));
     }
 
     function test_RoyaltyModule_payRoyaltyOnBehalf_revert_NoRoyaltyPolicySet() public {
@@ -236,5 +239,9 @@ contract TestRoyaltyModule is BaseTest {
 
         assertEq(ipAccount2USDCBalBefore - ipAccount2USDCBalAfter, royaltyAmount);
         assertEq(splitClone1USDCBalAfter - splitClone1USDCBalBefore, royaltyAmount);
+    }
+
+    function onERC721Received(address, address, uint256, bytes memory) public pure virtual returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 }

@@ -12,9 +12,9 @@ import { BaseTest } from "../../utils/BaseTest.t.sol";
 contract TestLSClaimer is BaseTest {
     RoyaltyPolicyLS internal testRoyaltyPolicyLS;
 
-    address internal ipAccount1 = address(0x111000aaa);
-    address internal ipAccount2 = address(0x111000bbb);
-    address internal ipAccount3 = address(0x111000ccc);
+    address internal ipAccount1;
+    address internal ipAccount2;
+    address internal ipAccount3;
 
     function setUp() public override {
         super.setUp();
@@ -30,6 +30,12 @@ contract TestLSClaimer is BaseTest {
         buildDeployPolicyCondition(DeployPolicyCondition({ arbitrationPolicySP: false, royaltyPolicyLS: true }));
         deployConditionally();
         postDeploymentSetup();
+        mockNFT.mintId(address(this), 901);
+        mockNFT.mintId(address(this), 902);
+        mockNFT.mintId(address(this), 903);
+        ipAccount1 = ipAssetRegistry.register(block.chainid, address(mockNFT), 901);
+        ipAccount2 = ipAssetRegistry.register(block.chainid, address(mockNFT), 902);
+        ipAccount3 = ipAssetRegistry.register(block.chainid, address(mockNFT), 903);
     }
 
     function test_RoyaltyPolicyLS_constructor_revert_ZeroRoyaltyModule() public {
@@ -280,5 +286,9 @@ contract TestLSClaimer is BaseTest {
         royaltyPolicyLS.distributeFunds(ipAccount2, address(USDC), accounts, address(0));
 
         royaltyPolicyLS.claimRoyalties(ipAccount2, 0, tokens);
+    }
+
+    function onERC721Received(address, address, uint256, bytes memory) public pure virtual returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 }
