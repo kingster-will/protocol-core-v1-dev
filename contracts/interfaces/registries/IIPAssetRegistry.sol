@@ -26,7 +26,7 @@ interface IIPAssetRegistry is IIPAccountRegistry {
         bytes metadata
     );
 
-    event NewIPRegistered(
+    event IPRegisteredV2(
         address ipId,
         uint256 indexed chainId,
         address indexed tokenContract,

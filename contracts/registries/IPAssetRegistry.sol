@@ -115,7 +115,7 @@ contract IPAssetRegistry is IIPAssetRegistry, IPAccountRegistry, Governable {
 
         totalSupply++;
 
-        emit NewIPRegistered(id, chainId, tokenContract, tokenId, name, uri, registrationDate);
+        emit IPRegisteredV2(id, chainId, tokenContract, tokenId, name, uri, registrationDate);
     }
 
     /// @notice Registers an NFT as an IP asset.

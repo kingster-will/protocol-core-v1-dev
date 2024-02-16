@@ -76,7 +76,7 @@ contract IPAssetRegistryTest is BaseTest {
         assertTrue(!IPAccountChecker.isRegistered(ipAccountRegistry, block.chainid, tokenAddress, tokenId));
 
         vm.expectEmit(true, true, true, true);
-        emit IIPAssetRegistry.NewIPRegistered(
+        emit IIPAssetRegistry.IPRegisteredV2(
             ipId,
             block.chainid,
             tokenAddress,
