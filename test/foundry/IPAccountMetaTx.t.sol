@@ -46,8 +46,8 @@ contract IPAccountMetaTxTest is Test {
         owner = vm.addr(ownerPrivateKey);
         caller = vm.addr(callerPrivateKey);
 
-        implementation = new IPAccountImpl();
-        registry = new IPAccountRegistry(address(erc6551Registry), address(accessController), address(implementation));
+        implementation = new IPAccountImpl(address(accessController));
+        registry = new IPAccountRegistry(address(erc6551Registry), address(implementation));
         accessController.initialize(address(registry), address(moduleRegistry));
         module = new MockModule(address(registry), address(moduleRegistry), "Module1WithPermission");
         accessControlledModule = new MockAccessControlledModule(
