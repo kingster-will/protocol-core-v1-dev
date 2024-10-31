@@ -211,8 +211,9 @@ contract GroupingModule is
         IIpRoyaltyVault vault = IIpRoyaltyVault(ROYALTY_MODULE.ipRoyaltyVaults(groupId));
 
         if (address(vault) == address(0)) revert Errors.GroupingModule__GroupRoyaltyVaultNotCreated(groupId);
-
-        royalties = vault.claimRevenueOnBehalfBySnapshotBatch(snapshotIds, token, address(pool));
+        address[] memory tokens = new address[](1);
+        tokens[0] = token;
+        royalties = vault.claimRevenueOnBehalfByTokenBatch(tokens, address(pool))[0];
         pool.depositReward(groupId, token, royalties);
         emit CollectedRoyaltiesToGroupPool(groupId, token, address(pool), royalties, snapshotIds);
     }
