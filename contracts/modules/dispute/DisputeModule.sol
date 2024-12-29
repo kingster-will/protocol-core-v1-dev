@@ -161,7 +161,10 @@ contract DisputeModule is
     /// @notice Sets the arbitration policy for an ipId
     /// @param ipId The ipId
     /// @param nextArbitrationPolicy The address of the arbitration policy
-    function setArbitrationPolicy(address ipId, address nextArbitrationPolicy) external whenNotPaused verifyPermission(ipId) {
+    function setArbitrationPolicy(
+        address ipId,
+        address nextArbitrationPolicy
+    ) external whenNotPaused verifyPermission(ipId) {
         DisputeModuleStorage storage $ = _getDisputeModuleStorage();
         if (!$.isWhitelistedArbitrationPolicy[nextArbitrationPolicy])
             revert Errors.DisputeModule__NotWhitelistedArbitrationPolicy();
