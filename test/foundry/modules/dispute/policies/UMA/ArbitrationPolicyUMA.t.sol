@@ -6,6 +6,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
 import { DisputeModule } from "contracts/modules/dispute/DisputeModule.sol";
+import { RoyaltyModule } from "contracts/modules/royalty/RoyaltyModule.sol";
 import { ArbitrationPolicyUMA } from "contracts/modules/dispute/policies/UMA/ArbitrationPolicyUMA.sol";
 import { IOOV3 } from "contracts/interfaces/modules/dispute/policies/UMA/IOOV3.sol";
 import { Errors } from "contracts/lib/Errors.sol";
@@ -34,6 +35,7 @@ contract ArbitrationPolicyUMATest is BaseTest {
     MockIpAssetRegistry mockIpAssetRegistry;
     ArbitrationPolicyUMA newArbitrationPolicyUMA;
     DisputeModule newDisputeModule;
+    RoyaltyModule newRoyaltyModule;
     address internal newOOV3;
     AccessManager newAccessManager;
     address internal newAdmin;
@@ -71,8 +73,18 @@ contract ArbitrationPolicyUMATest is BaseTest {
             )
         );
 
+        // deploy royalty module
+        address newRoyaltyModuleImpl = address(new RoyaltyModule(address(1), address(1), address(1), address(1)));
+        newRoyaltyModule = RoyaltyModule(
+            TestProxyHelper.deployUUPSProxy(
+                newRoyaltyModuleImpl,
+                abi.encodeCall(RoyaltyModule.initialize, (address(newAccessManager), uint256(8), uint256(1024), uint256(15)))
+            )
+        );
+        newRoyaltyModule.whitelistRoyaltyToken(susd, true);
+
         // deploy arbitration policy UMA
-        address newArbitrationPolicyUMAImpl = address(new ArbitrationPolicyUMA(address(newDisputeModule)));
+        address newArbitrationPolicyUMAImpl = address(new ArbitrationPolicyUMA(address(newDisputeModule), address(newRoyaltyModule)));
         newArbitrationPolicyUMA = ArbitrationPolicyUMA(
             TestProxyHelper.deployUUPSProxy(
                 newArbitrationPolicyUMAImpl,
@@ -100,7 +112,12 @@ contract ArbitrationPolicyUMATest is BaseTest {
 
     function test_ArbitrationPolicyUMA_constructor_revert_ZeroDisputeModule() public {
         vm.expectRevert(Errors.ArbitrationPolicyUMA__ZeroDisputeModule.selector);
-        new ArbitrationPolicyUMA(address(0));
+        new ArbitrationPolicyUMA(address(0), address(1));
+    }
+
+    function test_ArbitrationPolicyUMA_constructor_revert_ZeroRoyaltyModule() public {
+        vm.expectRevert(Errors.ArbitrationPolicyUMA__ZeroRoyaltyModule.selector);
+        new ArbitrationPolicyUMA(address(1), address(0));
     }
 
     function test_ArbitrationPolicyUMA_setOOV3_revert_ZeroOOV3() public {
@@ -217,6 +234,21 @@ contract ArbitrationPolicyUMATest is BaseTest {
         newDisputeModule.raiseDispute(address(1), disputeEvidenceHashExample, "IMPROPER_REGISTRATION", data);
     }
 
+    function test_ArbitrationPolicyUMA_onRaiseDispute_revert_CurrencyNotWhitelisted() public {
+        bytes memory claim = "test claim";
+        uint64 liveness = 3600 * 24 * 30;
+        IERC20 currency = IERC20(address(new MockERC20()));
+        uint256 bond = 0;
+        bytes32 identifier = bytes32("ASSERT_TRUTH");
+
+        bytes memory data = abi.encode(claim, liveness, currency, bond, identifier);
+
+        newRoyaltyModule.whitelistRoyaltyToken(address(currency), false);
+
+        vm.expectRevert(Errors.ArbitrationPolicyUMA__CurrencyNotWhitelisted.selector);
+        newDisputeModule.raiseDispute(address(1), disputeEvidenceHashExample, "IMPROPER_REGISTRATION", data);
+    }
+
     function test_ArbitrationPolicyUMA_onRaiseDispute_revert_UnsupportedCurrency() public {
         bytes memory claim = "test claim";
         uint64 liveness = 3600 * 24 * 30;
@@ -225,6 +257,8 @@ contract ArbitrationPolicyUMATest is BaseTest {
         bytes32 identifier = bytes32("ASSERT_TRUTH");
 
         bytes memory data = abi.encode(claim, liveness, currency, bond, identifier);
+
+        newRoyaltyModule.whitelistRoyaltyToken(address(currency), true);
 
         vm.expectRevert("Unsupported currency");
         newDisputeModule.raiseDispute(address(1), disputeEvidenceHashExample, "IMPROPER_REGISTRATION", data);
