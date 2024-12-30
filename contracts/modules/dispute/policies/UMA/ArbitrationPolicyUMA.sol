@@ -10,6 +10,7 @@ import { IDisputeModule } from "../../../../interfaces/modules/dispute/IDisputeM
 import { IArbitrationPolicyUMA } from "../../../../interfaces/modules/dispute/policies/UMA/IArbitrationPolicyUMA.sol";
 import { IOOV3 } from "../../../../interfaces/modules/dispute/policies/UMA/IOOV3.sol";
 import { ProtocolPausableUpgradeable } from "../../../../pause/ProtocolPausableUpgradeable.sol";
+import { BytesConversion } from "../../../../lib/BytesConversion.sol";
 import { Errors } from "../../../../lib/Errors.sol";
 
 /// @title Arbitration Policy UMA
@@ -123,18 +124,24 @@ contract ArbitrationPolicyUMA is
     /// @notice Executes custom logic on raising dispute
     /// @dev Enforced to be only callable by the DisputeModule
     /// @param caller Address of the caller
+    /// @param disputeId The dispute id
     /// @param data The arbitrary data used to raise the dispute
-    function onRaiseDispute(address caller, bytes calldata data) external nonReentrant onlyDisputeModule whenNotPaused {
-        (bytes memory claim, uint64 liveness, address currency, uint256 bond, bytes32 identifier) = abi.decode(
-            data,
-            (bytes, uint64, address, uint256, bytes32)
-        );
+    function onRaiseDispute(
+        address caller,
+        uint256 disputeId,
+        bytes calldata data
+    ) external nonReentrant onlyDisputeModule whenNotPaused {
+        (uint64 liveness, address currency, uint256 bond) = abi.decode(data, (uint64, address, uint256));
 
         ArbitrationPolicyUMAStorage storage $ = _getArbitrationPolicyUMAStorage();
         if (liveness < $.minLiveness) revert Errors.ArbitrationPolicyUMA__LivenessBelowMin();
         if (liveness > $.maxLiveness) revert Errors.ArbitrationPolicyUMA__LivenessAboveMax();
         if (bond > $.maxBonds[currency]) revert Errors.ArbitrationPolicyUMA__BondAboveMax();
 
+        bytes memory claim = abi.encodePacked(
+            bytes("This IP is infringing according to the information from the dispute Id "),
+            BytesConversion.toUtf8BytesUint(disputeId)
+        );
         IERC20 currencyToken = IERC20(currency);
         IOOV3 oov3 = $.oov3;
         currencyToken.safeTransferFrom(caller, address(this), bond);
@@ -148,7 +155,7 @@ contract ArbitrationPolicyUMA is
             liveness,
             currencyToken,
             bond,
-            identifier,
+            bytes32("ASSERT_TRUTH"), // identifier
             bytes32(0) // domainId
         );
 
@@ -156,7 +163,7 @@ contract ArbitrationPolicyUMA is
         $.assertionIdToDisputeId[assertionId] = disputeId;
         $.disputeIdToAssertionId[disputeId] = assertionId;
 
-        emit DisputeRaisedUMA(disputeId, caller, claim, liveness, currency, bond, identifier);
+        emit DisputeRaisedUMA(disputeId, caller, liveness, currency, bond);
     }
 
     /// @notice Executes custom logic on disputing judgement
