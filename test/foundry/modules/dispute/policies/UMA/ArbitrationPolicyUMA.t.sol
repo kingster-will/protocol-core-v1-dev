@@ -813,12 +813,11 @@ contract ArbitrationPolicyUMATest is BaseTest {
         );
         // warp
         vm.warp(block.timestamp + 4 days);
-        // set the IpOwnerTimePercent to 10%
+        // set the IpOwnerTimePercent to 0%
         newArbitrationPolicyUMA.setLiveness(10, 100, 0);
-        
+
         bytes32 assertionId = newArbitrationPolicyUMA.disputeIdToAssertionId(disputeId);
         bytes32 counterEvidenceHash = bytes32("COUNTER_EVIDENCE_HASH");
-        // dispute as random user, this will only go through if the window has closed. 
         vm.startPrank(address(2));
         vm.expectRevert(
             abi.encodeWithSelector(
