@@ -208,7 +208,7 @@ contract IpRoyaltyVault is IIpRoyaltyVault, ERC20Upgradeable, ReentrancyGuardUpg
     /// @param token The revenue token to check
     /// @return The revenue debt of the claimer
     function claimerRevenueDebt(address claimer, address token) external view returns (int256) {
-        return _getIpRoyaltyVaultStorage().claimerRevenueDebt[token][claimer] / 1e12;
+        return _getIpRoyaltyVaultStorage().claimerRevenueDebt[token][claimer];
     }
 
     /// @notice Returns list of revenue tokens in the vault
@@ -254,11 +254,11 @@ contract IpRoyaltyVault is IIpRoyaltyVault, ERC20Upgradeable, ReentrancyGuardUpg
             uint256 pendingTo = _claimableRevenue(to, tokenList[i]);
             uint256 accBalance = $.vaultAccBalances[tokenList[i]];
             $.claimerRevenueDebt[tokenList[i]][to] =
-                int256((accBalance * 1e12 * (balanceOf(to) + amount)) / totalSupply) -
-                int256(pendingTo) * 1e12;
+                int256((accBalance * (balanceOf(to) + amount))) -
+                int256(pendingTo) * int256(totalSupply);
             $.claimerRevenueDebt[tokenList[i]][from] =
-                int256((accBalance * 1e12 * (balanceOfFrom - amount)) / totalSupply) -
-                int256(pendingFrom) * 1e12;
+                int256((accBalance * (balanceOfFrom - amount))) -
+                int256(pendingFrom) * int256(totalSupply);
         }
 
         super._update(from, to, amount);
@@ -293,7 +293,7 @@ contract IpRoyaltyVault is IIpRoyaltyVault, ERC20Upgradeable, ReentrancyGuardUpg
         for (uint256 i = 0; i < tokenList.length; i++) {
             claimedAmounts[i] = _claimPendingRevenue(claimer, tokenList[i]);
             if (claimedAmounts[i] == 0) revert Errors.IpRoyaltyVault__NoClaimableTokens();
-            $.claimerRevenueDebt[tokenList[i]][claimer] += int256(claimedAmounts[i]) * 1e12;
+            $.claimerRevenueDebt[tokenList[i]][claimer] += int256(claimedAmounts[i]) * int256(totalSupply());
         }
 
         return claimedAmounts;
@@ -313,9 +313,9 @@ contract IpRoyaltyVault is IIpRoyaltyVault, ERC20Upgradeable, ReentrancyGuardUpg
         uint256 accBalance = $.vaultAccBalances[token];
         uint256 userAmount = balanceOf(claimer);
         int256 rewardDebt = $.claimerRevenueDebt[token][claimer];
-        int256 pending = int256((accBalance * 1e12 * userAmount) / totalSupply()) - rewardDebt;
+        int256 pending = int256((accBalance * userAmount)) - rewardDebt;
         if (pending < 0) revert Errors.IpRoyaltyVault__NegativeValueUnsafeCastingToUint256();
-        return uint256(pending / 1e12);
+        return uint256(pending / int256(totalSupply()));
     }
 
     /// @dev Returns the storage struct of IpRoyaltyVault

