@@ -269,7 +269,8 @@ contract ArbitrationPolicyUMA is
         return _getArbitrationPolicyUMAStorage().ipOwnerTimePercent;
     }
 
-    /// @notice Returns the percentage of liveness time the IP owner has priority to respond to a dispute for a given dispute id
+    /// @notice Returns the percentage of liveness time the IP owner has priority to respond to a dispute 
+    /// for a given dispute id
     function ipOwnerTimePercents(uint256 disputeId) external view returns (uint32) {
         return _getArbitrationPolicyUMAStorage().ipOwnerTimePercents[disputeId];
     }
