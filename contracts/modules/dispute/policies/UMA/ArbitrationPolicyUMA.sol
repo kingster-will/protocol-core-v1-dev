@@ -159,7 +159,6 @@ contract ArbitrationPolicyUMA is
             bytes32(0) // domainId
         );
 
-        uint256 disputeId = IDisputeModule(DISPUTE_MODULE).disputeCounter();
         $.assertionIdToDisputeId[assertionId] = disputeId;
         $.disputeIdToAssertionId[disputeId] = assertionId;
 
