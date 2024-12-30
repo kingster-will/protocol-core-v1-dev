@@ -255,10 +255,12 @@ contract IpRoyaltyVault is IIpRoyaltyVault, ERC20Upgradeable, ReentrancyGuardUpg
             uint256 accBalance = $.vaultAccBalances[tokenList[i]];
             $.claimerRevenueDebt[tokenList[i]][to] =
                 int256((accBalance * (balanceOf(to) + amount))) -
-                int256(pendingTo) * int256(totalSupply);
+                int256(pendingTo) *
+                int256(totalSupply);
             $.claimerRevenueDebt[tokenList[i]][from] =
                 int256((accBalance * (balanceOfFrom - amount))) -
-                int256(pendingFrom) * int256(totalSupply);
+                int256(pendingFrom) *
+                int256(totalSupply);
         }
 
         super._update(from, to, amount);
