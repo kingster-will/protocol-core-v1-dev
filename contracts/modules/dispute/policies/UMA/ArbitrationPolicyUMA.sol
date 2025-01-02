@@ -37,9 +37,9 @@ contract ArbitrationPolicyUMA is
     /// @param oov3 The address of the OOV3
     /// @param maxBonds The maximum bond size for each token
     /// @param disputeIdToAssertionId The mapping of dispute id to assertion id
-    /// @param ipOwnerTimePercents The mapping of dispute id to ip owner time percent of the dispute
     /// @param assertionIdToDisputeId The mapping of assertion id to dispute id
     /// @param counterEvidenceHashes The mapping of assertion id to counter evidence hash
+    /// @param ipOwnerTimePercents The mapping of dispute id to ip owner time percent of the dispute
     /// @custom:storage-location erc7201:story-protocol.ArbitrationPolicyUMA
     struct ArbitrationPolicyUMAStorage {
         uint64 minLiveness;
@@ -48,9 +48,9 @@ contract ArbitrationPolicyUMA is
         IOOV3 oov3;
         mapping(address token => uint256 maxBondSize) maxBonds;
         mapping(uint256 disputeId => bytes32 assertionId) disputeIdToAssertionId;
-        mapping(uint256 disputeId => uint32 ipOwnerTimePercent) ipOwnerTimePercents;
         mapping(bytes32 assertionId => uint256 disputeId) assertionIdToDisputeId;
         mapping(bytes32 assertionId => bytes32 counterEvidenceHash) counterEvidenceHashes;
+        mapping(uint256 disputeId => uint32 ipOwnerTimePercent) ipOwnerTimePercents;
     }
 
     // keccak256(abi.encode(uint256(keccak256("story-protocol.ArbitrationPolicyUMA")) - 1)) & ~bytes32(uint256(0xff));
