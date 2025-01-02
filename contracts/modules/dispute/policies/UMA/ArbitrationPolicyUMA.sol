@@ -42,6 +42,7 @@ contract ArbitrationPolicyUMA is
     /// @param disputeIdToAssertionId The mapping of dispute id to assertion id
     /// @param assertionIdToDisputeId The mapping of assertion id to dispute id
     /// @param counterEvidenceHashes The mapping of assertion id to counter evidence hash
+    /// @param ipOwnerTimePercents The mapping of dispute id to ip owner time percent of the dispute
     /// @custom:storage-location erc7201:story-protocol.ArbitrationPolicyUMA
     struct ArbitrationPolicyUMAStorage {
         uint64 minLiveness;
@@ -52,6 +53,7 @@ contract ArbitrationPolicyUMA is
         mapping(uint256 disputeId => bytes32 assertionId) disputeIdToAssertionId;
         mapping(bytes32 assertionId => uint256 disputeId) assertionIdToDisputeId;
         mapping(bytes32 assertionId => bytes32 counterEvidenceHash) counterEvidenceHashes;
+        mapping(uint256 disputeId => uint32 ipOwnerTimePercent) ipOwnerTimePercents;
     }
 
     // keccak256(abi.encode(uint256(keccak256("story-protocol.ArbitrationPolicyUMA")) - 1)) & ~bytes32(uint256(0xff));
@@ -170,6 +172,7 @@ contract ArbitrationPolicyUMA is
             bytes32(0) // domainId
         );
 
+        $.ipOwnerTimePercents[disputeId] = $.ipOwnerTimePercent;
         $.assertionIdToDisputeId[assertionId] = disputeId;
         $.disputeIdToAssertionId[disputeId] = assertionId;
 
@@ -221,7 +224,7 @@ contract ArbitrationPolicyUMA is
         uint64 liveness = assertion.expirationTime - assertion.assertionTime;
         uint64 elapsedTime = uint64(block.timestamp) - assertion.assertionTime;
         uint32 maxPercent = ROYALTY_MODULE.maxPercent();
-        bool inIpOwnerTimeWindow = elapsedTime <= (liveness * $.ipOwnerTimePercent) / maxPercent;
+        bool inIpOwnerTimeWindow = elapsedTime <= (liveness * $.ipOwnerTimePercents[disputeId]) / maxPercent;
         if (inIpOwnerTimeWindow && msg.sender != targetIpId)
             revert Errors.ArbitrationPolicyUMA__OnlyTargetIpIdCanDisputeWithinTimeWindow(
                 elapsedTime,
@@ -277,6 +280,12 @@ contract ArbitrationPolicyUMA is
     /// @notice Returns the percentage of liveness time the IP owner has priority to respond to a dispute
     function ipOwnerTimePercent() external view returns (uint32) {
         return _getArbitrationPolicyUMAStorage().ipOwnerTimePercent;
+    }
+
+    /// @notice Returns the percentage of liveness time the IP owner has priority to respond to a dispute
+    /// for a given dispute id
+    function ipOwnerTimePercents(uint256 disputeId) external view returns (uint32) {
+        return _getArbitrationPolicyUMAStorage().ipOwnerTimePercents[disputeId];
     }
 
     /// @notice Returns the OOV3 address
