@@ -549,6 +549,9 @@ library Errors {
     /// @notice Zero address provided for Dispute Module.
     error ArbitrationPolicyUMA__ZeroDisputeModule();
 
+    /// @notice Zero address provided for Royalty Module.
+    error ArbitrationPolicyUMA__ZeroRoyaltyModule();
+
     /// @notice Zero address provided for OOV3.
     error ArbitrationPolicyUMA__ZeroOOV3();
 
@@ -570,11 +573,17 @@ library Errors {
     /// @notice Min liveness is above max liveness.
     error ArbitrationPolicyUMA__MinLivenessAboveMax();
 
+    /// @notice Max bond is below minimum bond.
+    error ArbitrationPolicyUMA__MaxBondBelowMinimumBond();
+
     /// @notice IP owner time percent is above max.
     error ArbitrationPolicyUMA__IpOwnerTimePercentAboveMax();
 
     /// @notice Bond size is above max.
     error ArbitrationPolicyUMA__BondAboveMax();
+
+    /// @notice Currency is not whitelisted.
+    error ArbitrationPolicyUMA__CurrencyNotWhitelisted();
 
     /// @notice Cannot cancel.
     error ArbitrationPolicyUMA__CannotCancel();
