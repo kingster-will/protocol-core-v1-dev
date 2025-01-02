@@ -767,14 +767,12 @@ contract ArbitrationPolicyUMATest is BaseTest {
     }
 
     function test_ArbitrationPolicyUMA_disputeAssertion_WithIpOwnerTimePercentChange() public {
-        bytes memory claim = "test claim";
         // liveness set to 30 days
         uint64 liveness = 3600 * 24 * 30;
         IERC20 currency = IERC20(susd);
         uint256 bond = 0;
-        bytes32 identifier = bytes32("ASSERT_TRUTH");
 
-        bytes memory data = abi.encode(claim, liveness, currency, bond, identifier);
+        bytes memory data = abi.encode(liveness, currency, bond);
 
         address targetIpId = address(1);
 

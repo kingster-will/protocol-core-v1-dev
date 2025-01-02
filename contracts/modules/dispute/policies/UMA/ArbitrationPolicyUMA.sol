@@ -223,7 +223,6 @@ contract ArbitrationPolicyUMA is
         IOOV3.Assertion memory assertion = $.oov3.getAssertion(assertionId);
         uint64 liveness = assertion.expirationTime - assertion.assertionTime;
         uint64 elapsedTime = uint64(block.timestamp) - assertion.assertionTime;
-
         uint32 maxPercent = ROYALTY_MODULE.maxPercent();
         bool inIpOwnerTimeWindow = elapsedTime <= (liveness * $.ipOwnerTimePercents[disputeId]) / maxPercent;
         if (inIpOwnerTimeWindow && msg.sender != targetIpId)
