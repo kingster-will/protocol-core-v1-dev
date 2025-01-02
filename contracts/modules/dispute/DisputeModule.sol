@@ -215,7 +215,7 @@ contract DisputeModule is
             parentDisputeId: 0
         });
 
-        IArbitrationPolicy(arbitrationPolicy).onRaiseDispute(msg.sender, data);
+        IArbitrationPolicy(arbitrationPolicy).onRaiseDispute(msg.sender, disputeId, data);
 
         emit DisputeRaised(
             disputeId,
