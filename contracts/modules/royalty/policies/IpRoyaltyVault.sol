@@ -187,7 +187,7 @@ contract IpRoyaltyVault is IIpRoyaltyVault, ERC20Upgradeable, ReentrancyGuardUpg
     function claimableRevenue(address claimer, address token) external view whenNotPaused returns (uint256) {
         // if the ip is tagged, then the unclaimed royalties are unavailable until the dispute is resolved
         if (DISPUTE_MODULE.isIpTagged(_getIpRoyaltyVaultStorage().ipId)) return 0;
-        return _claimableRevenue(claimer, token);
+        return _claimableRevenue(claimer, token) / totalSupply();
     }
 
     /// @notice The ip id to whom this royalty vault belongs to
@@ -255,12 +255,10 @@ contract IpRoyaltyVault is IIpRoyaltyVault, ERC20Upgradeable, ReentrancyGuardUpg
             uint256 accBalance = $.vaultAccBalances[tokenList[i]];
             $.claimerRevenueDebt[tokenList[i]][to] =
                 int256((accBalance * (balanceOf(to) + amount))) -
-                int256(pendingTo) *
-                int256(totalSupply);
+                int256(pendingTo);
             $.claimerRevenueDebt[tokenList[i]][from] =
                 int256((accBalance * (balanceOfFrom - amount))) -
-                int256(pendingFrom) *
-                int256(totalSupply);
+                int256(pendingFrom);
         }
 
         super._update(from, to, amount);
@@ -272,7 +270,7 @@ contract IpRoyaltyVault is IIpRoyaltyVault, ERC20Upgradeable, ReentrancyGuardUpg
     function _claimPendingRevenue(address claimer, address token) internal returns (uint256 pending) {
         // if the ip is tagged, then the unclaimed royalties are unavailable until the dispute is resolved
         if (DISPUTE_MODULE.isIpTagged(_getIpRoyaltyVaultStorage().ipId)) return 0;
-        pending = _claimableRevenue(claimer, token);
+        pending = _claimableRevenue(claimer, token) / totalSupply();
         if (pending > 0) {
             emit RevenueTokenClaimed(claimer, token, pending);
             IERC20(token).safeTransfer(claimer, pending);
@@ -317,7 +315,7 @@ contract IpRoyaltyVault is IIpRoyaltyVault, ERC20Upgradeable, ReentrancyGuardUpg
         int256 rewardDebt = $.claimerRevenueDebt[token][claimer];
         int256 pending = int256((accBalance * userAmount)) - rewardDebt;
         if (pending < 0) revert Errors.IpRoyaltyVault__NegativeValueUnsafeCastingToUint256();
-        return uint256(pending / int256(totalSupply()));
+        return uint256(pending);
     }
 
     /// @dev Returns the storage struct of IpRoyaltyVault
