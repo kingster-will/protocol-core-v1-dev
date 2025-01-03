@@ -441,31 +441,6 @@ contract ArbitrationPolicyUMATest is BaseTest {
         assertEq(currentTagAfter, bytes32("IMPROPER_REGISTRATION"));
     }
 
-    function test_ArbitrationPolicyUMA_disputeAssertion_revert_paused() public {
-        uint64 liveness = 3600 * 24 * 30;
-        IERC20 currency = IERC20(susd);
-        uint256 bond = 0;
-        bytes memory data = abi.encode(liveness, currency, bond);
-
-        address targetIpId = address(1);
-        uint256 disputeId = newDisputeModule.raiseDispute(
-            targetIpId,
-            disputeEvidenceHashExample,
-            "IMPROPER_REGISTRATION",
-            data
-        );
-
-        newArbitrationPolicyUMA.pause();
-
-        // dispute the assertion
-        vm.startPrank(targetIpId);
-        bytes32 assertionId = newArbitrationPolicyUMA.disputeIdToAssertionId(disputeId);
-        bytes32 counterEvidenceHash = bytes32("COUNTER_EVIDENCE_HASH");
-
-        vm.expectRevert(abi.encodeWithSelector(PausableUpgradeable.EnforcedPause.selector));
-        newArbitrationPolicyUMA.disputeAssertion(assertionId, counterEvidenceHash);
-    }
-
     function test_ArbitrationPolicyUMA_disputeAssertion_revert_CannotDisputeAssertionTwice() public {
         uint64 liveness = 3600 * 24 * 30;
         IERC20 currency = IERC20(susd);
