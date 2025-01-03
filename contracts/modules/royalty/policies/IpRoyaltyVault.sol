@@ -299,7 +299,7 @@ contract IpRoyaltyVault is IIpRoyaltyVault, ERC20Upgradeable, ReentrancyGuardUpg
         return claimedAmounts;
     }
 
-    /// @dev Returns the claimable revenue for a claimer of a given token
+    /// @dev Returns the claimable revenue for a claimer of a given token with extra decimal by multiplying totalSupply
     /// @param claimer The address of the claimer
     /// @param token The revenue token to claim
     function _claimableRevenueWithExtraDecimal(address claimer, address token) internal view returns (uint256) {
