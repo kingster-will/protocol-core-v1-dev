@@ -135,33 +135,34 @@ contract ArbitrationPolicyUMA is
     /// @notice Executes custom logic on raising dispute
     /// @dev Enforced to be only callable by the DisputeModule
     /// @param caller Address of the caller
+    /// @param targetIpId The ipId that is the target of the dispute
+    /// @param disputeEvidenceHash The hash pointing to the dispute evidence
+    /// @param targetTag The target tag of the dispute
     /// @param disputeId The dispute id
     /// @param data The arbitrary data used to raise the dispute
     function onRaiseDispute(
         address caller,
+        address targetIpId,
+        bytes32 disputeEvidenceHash,
+        bytes32 targetTag,
         uint256 disputeId,
         bytes calldata data
     ) external nonReentrant onlyDisputeModule whenNotPaused {
-        (uint64 liveness, address currency, uint256 bond) = abi.decode(data, (uint64, address, uint256));
+        (uint64 liveness, IERC20 currencyToken, uint256 bond) = abi.decode(data, (uint64, IERC20, uint256));
 
         ArbitrationPolicyUMAStorage storage $ = _getArbitrationPolicyUMAStorage();
         if (liveness < $.minLiveness) revert Errors.ArbitrationPolicyUMA__LivenessBelowMin();
         if (liveness > $.maxLiveness) revert Errors.ArbitrationPolicyUMA__LivenessAboveMax();
-        if (bond > $.maxBonds[currency]) revert Errors.ArbitrationPolicyUMA__BondAboveMax();
-        if (!ROYALTY_MODULE.isWhitelistedRoyaltyToken(currency))
+        if (bond > $.maxBonds[address(currencyToken)]) revert Errors.ArbitrationPolicyUMA__BondAboveMax();
+        if (!ROYALTY_MODULE.isWhitelistedRoyaltyToken(address(currencyToken)))
             revert Errors.ArbitrationPolicyUMA__CurrencyNotWhitelisted();
 
-        bytes memory claim = abi.encodePacked(
-            bytes("This IP is infringing according to the information from the dispute Id "),
-            BytesConversion.toUtf8BytesUint(disputeId)
-        );
-        IERC20 currencyToken = IERC20(currency);
         IOOV3 oov3 = $.oov3;
         currencyToken.safeTransferFrom(caller, address(this), bond);
         currencyToken.safeIncreaseAllowance(address(oov3), bond);
 
         bytes32 assertionId = oov3.assertTruth(
-            claim,
+            _constructClaim(targetIpId, targetTag, disputeEvidenceHash, disputeId),
             caller, // asserter
             address(this), // callbackRecipient
             address(0), // escalationManager
@@ -176,7 +177,7 @@ contract ArbitrationPolicyUMA is
         $.assertionIdToDisputeId[assertionId] = disputeId;
         $.disputeIdToAssertionId[disputeId] = assertionId;
 
-        emit DisputeRaisedUMA(disputeId, caller, liveness, currency, bond);
+        emit DisputeRaisedUMA(disputeId, caller, liveness, address(currencyToken), bond);
     }
 
     /// @notice Executes custom logic on disputing judgement
@@ -309,6 +310,33 @@ contract ArbitrationPolicyUMA is
     /// @param assertionId The assertion id
     function assertionIdToDisputeId(bytes32 assertionId) external view returns (uint256) {
         return _getArbitrationPolicyUMAStorage().assertionIdToDisputeId[assertionId];
+    }
+
+    /// @notice Constructs the claim for a given dispute
+    /// @param targetIpId The ipId that is the target of the dispute
+    /// @param disputeEvidenceHash The hash pointing to the dispute evidence
+    /// @param targetTag The target tag of the dispute
+    /// @param disputeId The dispute id
+    function _constructClaim(
+        address targetIpId,
+        bytes32 targetTag,
+        bytes32 disputeEvidenceHash,
+        uint256 disputeId
+    ) internal pure returns (bytes memory) {
+        return
+            abi.encodePacked(
+                '{"title": "',
+                "IP dispute ",
+                BytesConversion.toUtf8BytesUint(disputeId),
+                '", "description": "',
+                "The IP with ipId address ",
+                BytesConversion.toUtf8BytesAddress(targetIpId),
+                " is infringing beyond any reasonable doubt with dispute tag ",
+                BytesConversion.toUtf8Bytes(targetTag),
+                " given the evidence hash ",
+                BytesConversion.toUtf8Bytes(disputeEvidenceHash),
+                '"}'
+            );
     }
 
     /// @dev Hook to authorize the upgrade according to UUPSUpgradeable
