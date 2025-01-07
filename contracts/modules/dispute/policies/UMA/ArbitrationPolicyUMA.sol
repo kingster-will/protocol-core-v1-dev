@@ -317,6 +317,7 @@ contract ArbitrationPolicyUMA is
     /// @param disputeEvidenceHash The hash pointing to the dispute evidence
     /// @param targetTag The target tag of the dispute
     /// @param disputeId The dispute id
+    /* solhint-disable quotes */
     function _constructClaim(
         address targetIpId,
         bytes32 targetTag,
