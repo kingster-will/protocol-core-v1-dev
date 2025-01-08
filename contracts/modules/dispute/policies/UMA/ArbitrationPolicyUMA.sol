@@ -250,7 +250,7 @@ contract ArbitrationPolicyUMA is
     function assertionResolvedCallback(
         bytes32 assertionId,
         bool assertedTruthfully
-    ) external nonReentrant whenNotPaused {
+    ) external nonReentrant {
         ArbitrationPolicyUMAStorage storage $ = _getArbitrationPolicyUMAStorage();
         if (msg.sender != address($.oov3)) revert Errors.ArbitrationPolicyUMA__NotOOV3();
 
