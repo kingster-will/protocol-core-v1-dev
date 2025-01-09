@@ -196,7 +196,7 @@ contract RoyaltyModule is IRoyaltyModule, VaultController, ReentrancyGuardUpgrad
         RoyaltyModuleStorage storage $ = _getRoyaltyModuleStorage();
         if (royaltyPolicy == address(0)) revert Errors.RoyaltyModule__ZeroRoyaltyPolicy();
         if ($.isRegisteredExternalRoyaltyPolicy[royaltyPolicy]) revert Errors.RoyaltyModule__PolicyAlreadyRegistered();
-        
+
         $.isWhitelistedRoyaltyPolicy[royaltyPolicy] = allowed;
 
         emit RoyaltyPolicyWhitelistUpdated(royaltyPolicy, allowed);
