@@ -672,7 +672,7 @@ library Errors {
     error RoyaltyModule__AboveAncestorsLimit();
 
     /// @notice Royalty policy is already registered as external royalty policy.
-    error RoyaltyModule__PolicyAlreadyRegistered();
+    error RoyaltyModule__PolicyAlreadyRegisteredAsExternalRoyaltyPolicy();
 
     /// @notice Royalty policy is already whitelisted or registered.
     error RoyaltyModule__PolicyAlreadyWhitelistedOrRegistered();

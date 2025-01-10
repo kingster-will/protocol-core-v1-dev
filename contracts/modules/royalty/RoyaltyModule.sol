@@ -195,7 +195,8 @@ contract RoyaltyModule is IRoyaltyModule, VaultController, ReentrancyGuardUpgrad
     function whitelistRoyaltyPolicy(address royaltyPolicy, bool allowed) external restricted {
         RoyaltyModuleStorage storage $ = _getRoyaltyModuleStorage();
         if (royaltyPolicy == address(0)) revert Errors.RoyaltyModule__ZeroRoyaltyPolicy();
-        if ($.isRegisteredExternalRoyaltyPolicy[royaltyPolicy]) revert Errors.RoyaltyModule__PolicyAlreadyRegistered();
+        if ($.isRegisteredExternalRoyaltyPolicy[royaltyPolicy])
+            revert Errors.RoyaltyModule__PolicyAlreadyRegisteredAsExternalRoyaltyPolicy();
 
         $.isWhitelistedRoyaltyPolicy[royaltyPolicy] = allowed;
 
