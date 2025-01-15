@@ -283,4 +283,8 @@ contract IPAccountImpl is ERC6551, IPAccountStorage, IIPAccount {
         name = "Story Protocol IP Account";
         version = "1";
     }
+
+    function _authorizeUpgrade(address) internal virtual override {
+        revert Errors.IPAccount__UUPSUpgradeDisabled();
+    }
 }

@@ -4,7 +4,6 @@ pragma solidity ^0.8.23;
 
 // external
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { MockERC20 } from "test/foundry/mocks/token/MockERC20.sol";
 import { console2 } from "forge-std/console2.sol";
 import { Script } from "forge-std/Script.sol";
@@ -67,7 +66,6 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
 
     // PROXY 1967 IMPLEMENTATION STORAGE SLOTS
     bytes32 internal constant IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
-    address internal constant WIP = address(0x1516000000000000000000000000000000000000);
 
     error RoleConfigError(string message);
 
@@ -117,12 +115,7 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
     EvenSplitGroupPool internal evenSplitGroupPool;
 
     // Token
-    ERC20 private erc20; // keep private to avoid conflict with inheriting contracts
-
-    // keep private to avoid conflict with inheriting contracts
-    uint256 private immutable ARBITRATION_PRICE;
-    uint256 private immutable MAX_ROYALTY_APPROVAL;
-    address private immutable TREASURY_ADDRESS;
+    address private revenueToken;
 
     // DeployHelper variable
     bool private writeDeploys;
@@ -131,29 +124,20 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
 
     constructor(
         address erc6551Registry_,
-        address erc20_,
-        uint256 arbitrationPrice_,
-        uint256 maxRoyaltyApproval_,
-        address treasury_,
+        address revenueToken_,
         address ipGraphACL_
     ) JsonDeploymentHandler("main") {
         erc6551Registry = ERC6551Registry(erc6551Registry_);
-        erc20 = ERC20(erc20_);
-        MAX_ROYALTY_APPROVAL = maxRoyaltyApproval_;
-        TREASURY_ADDRESS = treasury_;
+        revenueToken = revenueToken_;
         ipGraphACL = IPGraphACL(ipGraphACL_);
-        /// @dev USDC addresses are fetched from
-        /// (mainnet) https://developers.circle.com/stablecoins/docs/usdc-on-main-networks
-        /// (testnet) https://developers.circle.com/stablecoins/docs/usdc-on-test-networks
-        if (block.chainid == 1) erc20 = ERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-        else if (block.chainid == 11155111) erc20 = ERC20(0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238);
-        else if (block.chainid == 1513) {
-            erc20 = ERC20(0x91f6F05B08c16769d3c85867548615d270C42fC7);
-        }
+        if (block.chainid == 1514) revenueToken = 0x1514000000000000000000000000000000000000; // WIP
+        else if (block.chainid == 1516) revenueToken = 0x1516000000000000000000000000000000000000; // WIP
     }
 
-    /// @dev To use, run the following command (e.g. for Sepolia):
-    /// forge script script/foundry/deployment/Main.s.sol:Main --rpc-url $RPC_URL --broadcast --verify -vvvv
+    /// @dev To use, run the following command (e.g. for Story Odyssey Testnet):
+    /// forge script script/foundry/deployment/Main.s.sol:Main <CREATE3_SEED> \
+    /// --sig "run(uint256)" --fork-url ${STORY_RPC}  --broadcast --sender=<SENDER_ADDRESS> \
+    /// --priority-gas-price 1 --legacy --verify --verifier=<VERIFIER_NAME> --verifier-url=<VERIFIER_URL>
 
     function run(address create3Deployer_, uint256 create3SaltSeed_, bool runStorageLayoutCheck, bool writeDeploys_, string memory version_) public virtual {
         create3Deployer = ICreate3Deployer(create3Deployer_);
@@ -174,7 +158,7 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
 
         // This will run OZ storage layout check for all contracts. Requires --ffi flag.
         //if (runStorageLayoutCheck) _validate();
-        
+
         _beginBroadcast(); // BroadcastManager.s.sol
 
         _deployProtocolContracts();
@@ -206,20 +190,22 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
 
     function _deployProtocolContracts() private {
         string memory contractKey;
-        if (address(erc20) == address(0)) {
+        if (address(revenueToken) == address(0)) {
             contractKey = "MockERC20";
             _predeploy(contractKey);
-            erc20 = MockERC20(
-                create3Deployer.deployDeterministic(
-                    abi.encodePacked(type(MockERC20).creationCode, abi.encode(deployer)),
-                    _getSalt(type(MockERC20).name)
+            revenueToken = address(
+                MockERC20(
+                    create3Deployer.deployDeterministic(
+                        abi.encodePacked(type(MockERC20).creationCode, abi.encode(deployer)),
+                        _getSalt(type(MockERC20).name)
+                    )
                 )
             );
             require(
-                _getDeployedAddress(type(MockERC20).name) == address(erc20),
+                _getDeployedAddress(type(MockERC20).name) == address(revenueToken),
                 "Deploy: MockERC20 Address Mismatch"
             );
-            _postdeploy(contractKey, address(erc20));
+            _postdeploy(contractKey, address(revenueToken));
         }
 
         // Core Protocol Contracts
@@ -748,8 +734,7 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
         // Royalty Module and SP Royalty Policy
         royaltyModule.whitelistRoyaltyPolicy(address(royaltyPolicyLAP), true);
         royaltyModule.whitelistRoyaltyPolicy(address(royaltyPolicyLRP), true);
-        royaltyModule.whitelistRoyaltyToken(address(erc20), true);
-        royaltyModule.whitelistRoyaltyToken(WIP, true);
+        royaltyModule.whitelistRoyaltyToken(address(revenueToken), true);
         royaltyModule.setIpRoyaltyVaultBeacon(address(ipRoyaltyVaultBeacon));
         ipRoyaltyVaultBeacon.transferOwnership(address(royaltyModule));
 
