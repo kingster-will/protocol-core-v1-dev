@@ -139,13 +139,12 @@ contract PILicenseTemplate is
     /// @param licenseTermsId The ID of the license terms.
     /// @param licensee The address of the licensee who will receive the license token.
     /// @param licensorIpId The IP ID of the licensor who attached the license terms minting the license token.
-    /// @param amount The amount of licenses to mint.
     /// @return True if the minting is verified, false otherwise.
     function verifyMintLicenseToken(
         uint256 licenseTermsId,
         address licensee,
         address licensorIpId,
-        uint256 amount
+        uint256
     ) external override nonReentrant returns (bool) {
         if (!_exists(licenseTermsId)) return false;
         PILTerms memory terms = _getPILicenseTemplateStorage().licenseTerms[licenseTermsId];
