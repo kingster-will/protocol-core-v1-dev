@@ -139,12 +139,13 @@ contract PILicenseTemplate is
     /// @param licenseTermsId The ID of the license terms.
     /// @param licensee The address of the licensee who will receive the license token.
     /// @param licensorIpId The IP ID of the licensor who attached the license terms minting the license token.
+    /// @param amount The amount of licenses to mint.
     /// @return True if the minting is verified, false otherwise.
     function verifyMintLicenseToken(
         uint256 licenseTermsId,
         address licensee,
         address licensorIpId,
-        uint256
+        uint256 amount
     ) external override nonReentrant returns (bool) {
         if (!_exists(licenseTermsId)) return false;
         PILTerms memory terms = _getPILicenseTemplateStorage().licenseTerms[licenseTermsId];
@@ -162,7 +163,13 @@ contract PILicenseTemplate is
         if (terms.commercializerChecker != address(0)) {
             // No need to check if the commercializerChecker supports the IHookModule interface, as it was checked
             // when the policy was registered.
-            if (!IHookModule(terms.commercializerChecker).verify(licensee, terms.commercializerCheckerData)) {
+            if (
+                !IHookModule(terms.commercializerChecker).verify(
+                    licensorIpId,
+                    licensee,
+                    terms.commercializerCheckerData
+                )
+            ) {
                 return false;
             }
         }
@@ -206,19 +213,19 @@ contract PILicenseTemplate is
     /// @param childIpId The IP ID of the derivative.
     /// @param parentIpIds The IP IDs of the parents.
     /// @param licenseTermsIds The IDs of the license terms.
-    /// @param childIpOwner The address of the derivative IP owner.
+    /// @param caller The address initiating the derivative registration.
     /// @return True if the registration is verified, false otherwise.
     function verifyRegisterDerivativeForAllParents(
         address childIpId,
         address[] calldata parentIpIds,
         uint256[] calldata licenseTermsIds,
-        address childIpOwner
+        address caller
     ) external override returns (bool) {
         if (!_verifyCompatibleLicenseTerms(licenseTermsIds)) {
             return false;
         }
         for (uint256 i = 0; i < licenseTermsIds.length; i++) {
-            if (!_verifyRegisterDerivative(childIpId, parentIpIds[i], licenseTermsIds[i], childIpOwner)) {
+            if (!_verifyRegisterDerivative(childIpId, parentIpIds[i], licenseTermsIds[i], caller)) {
                 return false;
             }
         }
@@ -410,7 +417,9 @@ contract PILicenseTemplate is
         if (terms.commercializerChecker != address(0)) {
             // No need to check if the commercializerChecker supports the IHookModule interface, as it was checked
             // when the policy was registered.
-            if (!IHookModule(terms.commercializerChecker).verify(licensee, terms.commercializerCheckerData)) {
+            if (
+                !IHookModule(terms.commercializerChecker).verify(parentIpId, licensee, terms.commercializerCheckerData)
+            ) {
                 return false;
             }
         }
